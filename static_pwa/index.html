@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>競馬予想Webアプリ</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#bf2026" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #ffffff; }
+    iframe { border: 0; width: 100vw; height: 100vh; display: block; }
+  </style>
+</head>
+<body>
+  <iframe src="/app/" title="競馬予想Webアプリ"></iframe>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch((err) => {
+          console.warn("Service worker registration failed:", err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

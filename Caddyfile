@@ -1,0 +1,23 @@
+# ローカル開発用。本番では :8080 をドメイン名に変え、Caddyが自動でHTTPSを取得する。
+#
+# 構成:
+#   /            -> static_pwa/ (manifest.json / sw.js / icons / ラッパーindex.html)
+#   /app/*       -> Streamlit (localhost:8501, --server.baseUrlPath=app で起動しておくこと)
+#   /webhook/*   -> Stripe Webhook受信サーバー (localhost:8502)
+#
+# Streamlit自体やそのパッケージ内部ファイルは一切変更しない。PWA化(manifest/
+# Service Worker)はラッパーページ(static_pwa/index.html)がStreamlitをiframeで
+# 埋め込む形で実現している。
+
+:8080 {
+	encode gzip
+
+	@app path /app/*
+	reverse_proxy @app localhost:8501
+
+	@webhook path /webhook/*
+	reverse_proxy @webhook localhost:8502
+
+	root * static_pwa
+	file_server
+}

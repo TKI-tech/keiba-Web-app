@@ -1,0 +1,16 @@
+{
+  "name": "競馬予想Webアプリ",
+  "short_name": "競馬予想",
+  "description": "日付・会場・レース番号を選ぶだけで過去5年データと照合し、初心者向けの本命馬・買い目を提案するアプリ",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#bf2026",
+  "lang": "ja",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+  ]
+}
