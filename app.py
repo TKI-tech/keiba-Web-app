@@ -17,6 +17,7 @@ from core.accounts import (
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
     InvalidResetTokenError,
+    ensure_master_account,
     login,
     register,
     request_password_reset,
@@ -38,6 +39,16 @@ from core.underdog import pick_underdog
 load_dotenv()
 
 st.set_page_config(page_title="競馬予想Webアプリ", layout="wide")
+
+
+@st.cache_resource
+def _bootstrap_master_account() -> None:
+    # st.cache_resourceによりサーバープロセス起動後1回だけ実行される
+    # (毎リラン時にパスワードのハッシュ計算(意図的に低速)が走らないようにするため)。
+    ensure_master_account()
+
+
+_bootstrap_master_account()
 
 
 def render_reset_password_form(token: str) -> None:

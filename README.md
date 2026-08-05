@@ -99,6 +99,19 @@ Stripeキーを設定しなくてもアプリ自体は起動・動作する（�
 未設定でもアプリは動作するが、「パスワードを忘れた方」からの送信だけ
 「設定されていません」というエラーになる。
 
+### テスト用マスターアカウントを使う場合
+
+Stripe決済を実際に通さずに会員限定画面を確認したい場合、`.env.example` の
+`MASTER_EMAIL` / `MASTER_PASSWORD` を埋める。アプリ起動時にその email/password で
+常時有効な会員アカウントが自動的に用意され、通常のログインフォームからそのまま
+ログインできる（新規登録は不要）。**認証情報はコード・リポジトリには含めない**
+（`.env` は `.gitignore` 済み）。設定しなければ何も作られない。
+
+Renderにデプロイした本番URLで確認したい場合は、ダッシュボードのEnvironmentで
+同様に設定できる（`render.yaml` に項目を追加済み）。ただし設定している間は
+そのアカウントで誰でも会員限定画面を見られてしまうため、強いパスワードを使うか、
+確認が終わったら値を削除しておくこと。
+
 ## 起動（ローカル、Caddy経由でPWAとして）
 
 3つのプロセスを起動する。
@@ -201,7 +214,7 @@ core/predictions_db.py     予想履歴のSQLite永続化・会場別集計
 core/billing.py            Stripe Checkout / Billing Portalセッション作成
 core/members_db.py         会員（認証情報 + サブスクリプション状態）のSQLite永続化
 core/auth.py               パスワードのハッシュ化・検証(PBKDF2-HMAC-SHA256)
-core/accounts.py           登録・ログイン・パスワード再設定のビジネスロジック
+core/accounts.py           登録・ログイン・パスワード再設定・テスト用マスターアカウントのロジック
 core/email_sender.py       SMTP経由のメール送信（パスワード再設定通知）
 core/app_url.py            アプリ自身の公開URL解決（Stripe/メールのリンク生成で共有）
 

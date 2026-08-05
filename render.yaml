@@ -41,6 +41,12 @@ services:
         sync: false
       - key: SMTP_FROM_EMAIL
         sync: false
+      # テスト用マスターアカウント(任意)。設定するとStripe決済なしに会員限定画面を
+      # 確認できてしまうため、強いパスワードを使うか、確認が終わったら値を消すこと。
+      - key: MASTER_EMAIL
+        sync: false
+      - key: MASTER_PASSWORD
+        sync: false
     # disk:
     #   name: keiba-data
     #   mountPath: /app/data

@@ -7,6 +7,7 @@ core/members_db.py は永続化のみ、core/auth.py はハッシュ化のみを
 
 from __future__ import annotations
 
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -75,6 +76,21 @@ def request_password_reset(email: str) -> None:
         "心当たりがない場合はこのメールを無視してください。"
     )
     send_email(email, "【競馬予想Webアプリ】パスワード再設定のご案内", body)
+
+
+def ensure_master_account() -> None:
+    """MASTER_EMAIL / MASTER_PASSWORD が設定されていれば、常時有効な
+    テスト用会員アカウントを用意する(Stripe決済なしで会員限定画面を確認するため)。
+
+    認証情報はリポジトリに含めず環境変数(.env、またはRenderのEnvironment)で
+    渡す運用にしてある。未設定なら何もしない(=デフォルトでは作成されない)。
+    """
+    master_email = os.environ.get("MASTER_EMAIL")
+    master_password = os.environ.get("MASTER_PASSWORD")
+    if not master_email or not master_password:
+        return
+    members_db.set_password_hash(master_email, hash_password(master_password))
+    members_db.upsert_member(master_email, subscription_status="active")
 
 
 def reset_password(token: str, new_password: str) -> str:
