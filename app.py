@@ -12,9 +12,21 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
+from core.accounts import (
+    AccountError,
+    EmailAlreadyRegisteredError,
+    InvalidCredentialsError,
+    InvalidResetTokenError,
+    login,
+    register,
+    request_password_reset,
+    reset_password,
+)
+from core.app_url import AppUrlNotConfiguredError
 from core.bet_recommendation import BET_TYPES, recommend_bets
 from core.billing import BillingNotConfiguredError, create_billing_portal_session, create_checkout_session
 from core.data_source import get_entry_data_source
+from core.email_sender import EmailNotConfiguredError
 from core.history_source import build_tendency
 from core.members_db import get_member
 from core.models import VENUES
@@ -28,17 +40,93 @@ load_dotenv()
 st.set_page_config(page_title="競馬予想Webアプリ", layout="wide")
 
 
+def render_reset_password_form(token: str) -> None:
+    """パスワード再設定メールのリンク(?reset_token=...)を踏んだ場合の専用画面。
+    通常のレース予想UIより先に、これだけを表示する。
+    """
+    st.title("パスワードの再設定")
+    with st.form("reset_password_form"):
+        new_password = st.text_input("新しいパスワード", type="password")
+        confirm_password = st.text_input("新しいパスワード（確認）", type="password")
+        submitted = st.form_submit_button("パスワードを更新する", type="primary")
+
+    if submitted:
+        if new_password != confirm_password:
+            st.error("パスワードが一致しません。")
+        else:
+            try:
+                email = reset_password(token, new_password)
+            except AccountError as exc:
+                st.error(str(exc))
+            else:
+                st.query_params.clear()
+                st.success(f"{email} のパスワードを更新しました。サイドバーからログインしてください。")
+                st.stop()
+
+
 def render_membership_sidebar() -> bool:
-    """会員登録・プラン管理の導線。戻り値は、入力されたメールアドレスが
-    有効な会員かどうか（本命馬以外の会員限定機能の表示判定に使う）。
+    """ログイン・新規登録・パスワード再設定 + Stripe会員登録の導線。
+    戻り値は、ログイン中のアカウントが有効な会員（サブスク中）かどうか
+    （本命馬以外の会員限定機能の表示判定に使う）。
     """
     st.sidebar.subheader("会員登録・ログイン")
-    email = st.sidebar.text_input("メールアドレス", key="member_email")
-    if not email:
-        st.sidebar.caption("メールアドレスを入力すると会員状態を確認できます。")
+
+    logged_in_email = st.session_state.get("auth_email")
+
+    if not logged_in_email:
+        tab_login, tab_register, tab_forgot = st.sidebar.tabs(["ログイン", "新規登録", "パスワードを忘れた方"])
+
+        with tab_login:
+            with st.form("login_form"):
+                email = st.text_input("メールアドレス", key="login_email")
+                password = st.text_input("パスワード", type="password", key="login_password")
+                if st.form_submit_button("ログイン"):
+                    try:
+                        login(email, password)
+                    except AccountError as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state["auth_email"] = email
+                        st.rerun()
+
+        with tab_register:
+            with st.form("register_form"):
+                email = st.text_input("メールアドレス", key="register_email")
+                password = st.text_input("パスワード（8文字以上）", type="password", key="register_password")
+                confirm = st.text_input("パスワード（確認）", type="password", key="register_confirm")
+                if st.form_submit_button("登録する"):
+                    if password != confirm:
+                        st.error("パスワードが一致しません。")
+                    else:
+                        try:
+                            register(email, password)
+                        except AccountError as exc:
+                            st.error(str(exc))
+                        else:
+                            st.session_state["auth_email"] = email
+                            st.rerun()
+
+        with tab_forgot:
+            with st.form("forgot_password_form"):
+                email = st.text_input("メールアドレス", key="forgot_email")
+                if st.form_submit_button("再設定メールを送る"):
+                    try:
+                        request_password_reset(email)
+                    except (AppUrlNotConfiguredError, EmailNotConfiguredError) as exc:
+                        st.error(str(exc))
+                    else:
+                        st.success(
+                            "登録されているメールアドレスの場合、パスワード再設定用のリンクを送信しました。"
+                        )
+
         return False
 
-    member = get_member(email)
+    st.sidebar.write(f"ログイン中: {logged_in_email}")
+    if st.sidebar.button("ログアウト"):
+        del st.session_state["auth_email"]
+        st.rerun()
+
+    member = get_member(logged_in_email)
     if member and member.is_active:
         st.sidebar.success(f"会員登録済みです（状態: {member.subscription_status}）")
         if st.sidebar.button("プランを管理する"):
@@ -49,10 +137,10 @@ def render_membership_sidebar() -> bool:
                 st.sidebar.error(str(exc))
         return True
 
-    st.sidebar.info("未登録、または手続き中です。")
+    st.sidebar.info("会員未登録、または手続き中です。")
     if st.sidebar.button("登録リンクを作成"):
         try:
-            checkout_url = create_checkout_session(email)
+            checkout_url = create_checkout_session(logged_in_email)
             st.sidebar.link_button("Stripeで登録手続きへ進む", checkout_url)
         except BillingNotConfiguredError as exc:
             st.sidebar.error(str(exc))
@@ -62,10 +150,15 @@ def render_membership_sidebar() -> bool:
 def render_locked_section(title: str, description: str) -> None:
     st.subheader(title)
     st.info(
-        f"この機能は会員限定です。サイドバーでメールアドレスを入力し、登録すると{description}",
+        f"この機能は会員限定です。サイドバーでログイン・登録すると{description}",
         icon="🔒",
     )
 
+
+reset_token = st.query_params.get("reset_token")
+if reset_token:
+    render_reset_password_form(reset_token)
+    st.stop()
 
 is_member = render_membership_sidebar()
 st.sidebar.divider()
@@ -75,7 +168,7 @@ checkout_status = st.query_params.get("checkout")
 if checkout_status == "success":
     st.success(
         "決済処理を受け付けました。会員状態への反映まで数秒かかる場合があります。"
-        "サイドバーのメールアドレス欄で登録状態をご確認ください。"
+        "サイドバーでログイン状態をご確認ください。"
     )
 elif checkout_status == "cancel":
     st.warning("決済手続きがキャンセルされました。")

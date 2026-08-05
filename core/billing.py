@@ -16,6 +16,8 @@ import os
 
 import stripe
 
+from core.app_url import AppUrlNotConfiguredError, base_url as _app_base_url
+
 
 class BillingNotConfiguredError(RuntimeError):
     pass
@@ -35,15 +37,10 @@ def _configure_stripe() -> None:
 
 
 def _base_url() -> str:
-    """CheckoutからのリダイレクトURLの基点。APP_BASE_URL未設定時は、Renderが
-    自動で注入する RENDER_EXTERNAL_URL にフォールバックする(Render上での
-    デプロイをAPP_BASE_URLの手動設定なしで動かすため)。"""
-    base_url = os.environ.get("APP_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL")
-    if not base_url:
-        raise BillingNotConfiguredError(
-            "APP_BASE_URL が設定されていません。.env.example を参考に .env を用意してください。"
-        )
-    return base_url.rstrip("/")
+    try:
+        return _app_base_url()
+    except AppUrlNotConfiguredError as exc:
+        raise BillingNotConfiguredError(str(exc)) from exc
 
 
 def create_checkout_session(email: str) -> str:

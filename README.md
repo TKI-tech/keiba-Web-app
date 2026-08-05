@@ -12,10 +12,14 @@
 - JRA-VAN（JV-Link）等の実データ連携は未実装。`core/data_source.py` の
   `EntryDataSource` を実装した別クラスに差し替えることで接続できる設計にしてある。
   会員登録が必要なため対応は最後に回す方針。
-- Stripe連携は「メールアドレスでCheckout→サブスク登録→Billing Portalで管理」を
-  実装済み。**本命馬のみ無料、それ以外（おすすめ馬券・おすすめの穴馬・買い目提案・
-  出走馬一覧スコア表）は会員限定**で実際に機能ロックしている（`app.py` の
-  `is_member` 判定）。
+- ログイン機能あり（メールアドレス+パスワード、新規登録、パスワード再設定メール）。
+  パスワードはPBKDF2-HMAC-SHA256でハッシュ化して保存し、平文は保持しない
+  （`core/auth.py`）。ログイン状態はブラウザセッション中のみ保持され、永続クッキー
+  等は使っていない。
+- Stripe連携は「ログイン中のメールアドレスでCheckout→サブスク登録→Billing Portal
+  で管理」を実装済み。**本命馬のみ無料、それ以外（おすすめ馬券・おすすめの穴馬・
+  買い目提案・出走馬一覧スコア表）は会員限定**で実際に機能ロックしている（`app.py`
+  の `is_member` 判定、ログイン済み かつ サブスク有効の両方が必要）。
 - 「おすすめ馬券」はHarville式の着順確率モデル（`core/probability.py`）で見積もった
   的中率と、出走馬のオッズから見積もった回収率のバランスが良い1点を、30点以内で
   選ぶ。表示会員かどうかに関わらず、予想を出すたびに「このアプリの公式予想」として
@@ -87,6 +91,13 @@ winget install CaddyServer.Caddy
 
 Stripeキーを設定しなくてもアプリ自体は起動・動作する（会員登録ボタンを押すと
 「未設定です」というエラーメッセージが出るだけで、予想機能には影響しない）。
+
+### パスワード再設定メールを使う場合
+
+`.env.example` の `SMTP_*` を埋める（Gmailなら「アプリパスワード」を発行して
+`SMTP_PASSWORD` に設定する、またはSendGrid/Mailgun/Resend等のSMTPリレーを使う）。
+未設定でもアプリは動作するが、「パスワードを忘れた方」からの送信だけ
+「設定されていません」というエラーになる。
 
 ## 起動（ローカル、Caddy経由でPWAとして）
 
@@ -163,7 +174,7 @@ PORT=8080 ./start.sh
 ## 構成
 
 ```
-app.py                     Streamlit UI本体（予想結果・会員登録サイドバー）
+app.py                     Streamlit UI本体（予想結果・ログイン/会員登録サイドバー）
 webhook_server.py          Stripe Webhook受信（stdlib httpのみ、依存追加なし）
 Caddyfile                  リバースプロキシ + 静的PWA配信の設定
 static_pwa/                manifest.json / sw.js / offline.html / icons / ラッパーindex.html
@@ -188,7 +199,11 @@ core/result_source.py      ダミー実結果の生成（将来JRA-VANに差し�
 core/settlement.py         予想馬券と実結果の照合・回収率確定
 core/predictions_db.py     予想履歴のSQLite永続化・会場別集計
 core/billing.py            Stripe Checkout / Billing Portalセッション作成
-core/members_db.py         会員（サブスクリプション状態）のSQLite永続化
+core/members_db.py         会員（認証情報 + サブスクリプション状態）のSQLite永続化
+core/auth.py               パスワードのハッシュ化・検証(PBKDF2-HMAC-SHA256)
+core/accounts.py           登録・ログイン・パスワード再設定のビジネスロジック
+core/email_sender.py       SMTP経由のメール送信（パスワード再設定通知）
+core/app_url.py            アプリ自身の公開URL解決（Stripe/メールのリンク生成で共有）
 
 pages/01_過去の実績.py      過去の予想と的中実績（会場別回収率グラフ）
 ```

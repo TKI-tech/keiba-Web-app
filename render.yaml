@@ -31,6 +31,16 @@ services:
         sync: false
       - key: APP_BASE_URL
         sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
     # disk:
     #   name: keiba-data
     #   mountPath: /app/data
