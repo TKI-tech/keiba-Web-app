@@ -18,6 +18,8 @@ from core.data_source import get_entry_data_source
 from core.history_source import build_tendency
 from core.members_db import get_member
 from core.models import VENUES
+from core.predictions_db import find_prediction, save_prediction
+from core.recommended_ticket import pick_recommended_ticket
 from core.scoring import score_horses
 from core.underdog import pick_underdog
 
@@ -66,6 +68,8 @@ def render_locked_section(title: str, description: str) -> None:
 
 
 is_member = render_membership_sidebar()
+st.sidebar.divider()
+st.sidebar.page_link("pages/01_過去の実績.py", label="過去の予想実績を見る")
 
 checkout_status = st.query_params.get("checkout")
 if checkout_status == "success":
@@ -103,10 +107,29 @@ if submitted:
     condition, horses = data_source.get_race(target_date, venue, race_number)
     tendency = build_tendency(condition)
     scores = score_horses(tendency, horses)
+    ticket = pick_recommended_ticket(scores)
+
+    # 会員かどうかに関わらず、このアプリの「公式予想」として記録する
+    # （的中実績ページの集計対象。会員限定なのは表示のみ）。同じレースの
+    # 予想は毎回同じ内容になる(決定的なダミーデータ生成)ため、二重登録はしない。
+    if find_prediction(condition.date, condition.venue, condition.race_number) is None:
+        save_prediction(
+            race_date=condition.date,
+            venue=condition.venue,
+            race_number=condition.race_number,
+            bet_type=ticket.candidate.bet_type,
+            horse_numbers=[h.horse.number for h in ticket.candidate.horses],
+            horse_names=[h.horse.name for h in ticket.candidate.horses],
+            points=ticket.candidate.points,
+            estimated_hit_rate=ticket.candidate.hit_rate,
+            estimated_return_rate=ticket.candidate.return_rate,
+        )
+
     st.session_state["result"] = {
         "condition": condition,
         "tendency": tendency,
         "scores": scores,
+        "ticket": ticket,
     }
 
 if "result" not in st.session_state:
@@ -116,6 +139,7 @@ result = st.session_state["result"]
 condition = result["condition"]
 tendency = result["tendency"]
 scores = result["scores"]
+ticket = result["ticket"]
 
 st.divider()
 st.caption(
@@ -140,6 +164,30 @@ with col3:
     st.write(tendency.highlight)
     for reason in honmei.reasons:
         st.caption(f"・{reason}")
+
+st.divider()
+
+# --- おすすめ馬券（回収率×的中率バランス、会員限定） --------------------------
+if is_member:
+    st.subheader("おすすめ馬券")
+    c = ticket.candidate
+    col1, col2, col3 = st.columns([1, 1, 2])
+    with col1:
+        st.markdown("**券種・組合せ**")
+        st.markdown(f"## {c.bet_type}")
+        st.caption(f"{c.points}点（" + "、".join(f"{h.horse.number}番 {h.horse.name}" for h in c.horses) + "）")
+    with col2:
+        st.metric("見積もり的中率", f"{c.hit_rate * 100:.1f}%")
+        st.metric("見積もり回収率", f"{c.return_rate:.0f}%")
+    with col3:
+        st.markdown("**一言解説**")
+        st.write(ticket.explanation)
+    st.caption(
+        "的中率・回収率は過去5年の傾向データとオッズから見積もった参考値です"
+        "（実際の払戻額を保証するものではありません）。"
+    )
+else:
+    render_locked_section("おすすめ馬券", "回収率と的中率のバランスが良い、30点以内の買い目1点が確認できます。")
 
 st.divider()
 
