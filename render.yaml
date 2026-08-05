@@ -9,6 +9,10 @@
 #   disk セクションのコメントを外す(Renderの有料プランが必要)。
 # - sync: false の環境変数は、Renderダッシュボードの Environment 画面で手動設定する
 #   (Stripeの秘密鍵などをrender.yamlにコミットしないため)。
+# - PORT を明示的に指定しているのは、指定しないとRenderがコンテナ内の複数の開いた
+#   ポート(Caddy/Streamlit/webhook_server)から自動検出を試み、Caddy以外(例:
+#   Streamlitの8501番)を誤って外部公開ポートとして選んでしまうことがあるため。
+#   PORTを固定すればCaddyがそのポートで待ち受け、Renderも確実にそこへルーティングする。
 services:
   - type: web
     name: keiba-web-app
@@ -17,6 +21,8 @@ services:
     dockerContext: .
     plan: free
     envVars:
+      - key: PORT
+        value: "10000"
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PRICE_ID
