@@ -1,7 +1,7 @@
 """「おすすめの穴馬」の選定。
 
 出走馬全体をオッズの中央値で人気馬/穴馬に分け、穴馬側の中でスコア
-（1着適合率・複勝率の平均）が最も高い馬を「スコアの割に人気がない馬」として
+（1着適合率・複勝適合率の平均）が最も高い馬を「スコアの割に人気がない馬」として
 提示する。堅実タイプの本命馬とは別に、初心者にも分かりやすい"狙い目"を
 1頭だけ示す狙い。
 """
@@ -36,7 +36,7 @@ def pick_underdog(scores: list[HorseScore], tendency: Tendency) -> UnderdogPick 
 
     explanation = (
         f"{best.horse.number}番 {best.horse.name}はオッズ{best.horse.odds}倍（{best.horse.popularity}番人気）"
-        f"と人気は控えめですが、複勝率スコアは{best.place_score:.1f}%（同条件平均"
+        f"と人気は控えめですが、複勝適合率は{best.place_score:.1f}%（同条件平均"
         f"{tendency.baseline_fukusho_rate * 100:.1f}%）と平均を上回っており、"
         "妙味のある1頭です。"
     )

@@ -1,7 +1,7 @@
 # 競馬予想Webアプリ（MVP）
 
 初心者向け競馬予想Webアプリ。開催日・競馬場・レース番号を選ぶだけで、過去5年の
-傾向データと出走馬データを照合し、1着適合率・複勝率のスコア、本命馬、おすすめの
+傾向データと出走馬データを照合し、1着適合率・複勝適合率のスコア、本命馬、おすすめの
 穴馬、おすすめ馬券（回収率×的中率バランス、30点以内）、初心者向けの買い目を
 提示する。PWA対応、Stripeによる会員登録、予想実績の自動集計ページを持つ。
 
@@ -202,7 +202,7 @@ core/models.py             ドメインモデル・属性分類ロジック
 core/mock_data.py          出走馬ダミーデータ生成（将来JRA-VANに差し替え）
 core/data_source.py        出走馬データ取得の抽象化
 core/history_source.py     過去5年傾向データ（ダミー）
-core/scoring.py            1着適合率・複勝率のスコアリング
+core/scoring.py            1着適合率・複勝適合率のスコアリング
 core/underdog.py           おすすめの穴馬の選定
 core/bet_recommendation.py 堅実タイプ / 荒れ狙いタイプの買い目提案
 core/probability.py        Harville式の着順確率モデル

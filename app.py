@@ -263,7 +263,7 @@ with col1:
     st.markdown(f"## {honmei.horse.number}番 {honmei.horse.name}")
 with col2:
     st.metric("1着適合率", f"{honmei.win_score:.1f}%")
-    st.metric("想定複勝率", f"{honmei.place_score:.1f}%")
+    st.metric("複勝適合率", f"{honmei.place_score:.1f}%")
 with col3:
     st.markdown("**一言解説**")
     st.write(tendency.highlight)
@@ -347,6 +347,7 @@ st.divider()
 # --- C. 出走馬一覧スコア表（会員限定・折りたたみ） -----------------------------
 if is_member:
     with st.expander("出走馬一覧を見る（全頭のスコア表）", expanded=False):
+        score_columns = ["1着適合率(%)", "複勝適合率(%)"]
         table = pd.DataFrame(
             [
                 {
@@ -355,13 +356,34 @@ if is_member:
                     "枠": s.horse.frame,
                     "脚質": s.horse.running_style,
                     "1着適合率(%)": round(s.win_score, 1),
-                    "複勝率(%)": round(s.place_score, 1),
+                    "複勝適合率(%)": round(s.place_score, 1),
                     "オッズ": s.horse.odds,
                     "人気": s.horse.popularity,
                 }
-                for s in scores
+                for s in sorted(scores, key=lambda s: s.horse.number)
             ]
         )
-        st.dataframe(table, hide_index=True, width="stretch")
+
+        def _highlight_top3(column: pd.Series) -> list[str]:
+            # 同着(タイ)があっても必ず3セルだけ色が付くよう、値ではなく順位(重複なし)で判定する。
+            ranks = column.rank(method="first", ascending=False)
+            styles = {
+                1: "background-color: #FFEE58; color: #000000",
+                2: "background-color: #EF9A9A; color: #000000",
+                3: "background-color: #80DEEA; color: #000000",
+            }
+            return [styles.get(int(r), "") for r in ranks]
+
+        styled_table = table.style.apply(_highlight_top3, subset=score_columns).format(
+            {"1着適合率(%)": "{:.1f}", "複勝適合率(%)": "{:.1f}", "オッズ": "{:.1f}"}
+        )
+        st.dataframe(styled_table, hide_index=True, width="stretch")
+        st.caption("黄色=1位、赤=2位、水色=3位（1着適合率・複勝適合率それぞれの中で表示）")
+        st.caption(
+            "1着適合率・複勝適合率は、その馬個体の過去成績ではなく、"
+            "過去5年の同条件（会場・コース・距離・馬場状態）のレースで、この馬と同じ特徴"
+            "（脚質・枠順・馬体重・体重増減など）を持っていた馬たちが実際に「1着になった割合」"
+            "「3着以内に入った割合」をもとに算出した参考スコアです（0〜100%）。"
+        )
 else:
     render_locked_section("出走馬一覧スコア表", "全頭のスコア表が確認できます。")

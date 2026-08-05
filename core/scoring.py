@@ -1,4 +1,4 @@
-"""出走馬のスコアリング（1着適合率 / 複勝率）。
+"""出走馬のスコアリング（1着適合率 / 複勝適合率）。
 
 各馬の属性（脚質・枠・馬体重・体重増減・枠×脚質の組合せ）を、過去5年の同条件
 データにおけるカテゴリー別の勝率・複勝率と照合し、重み付き平均で0〜100%の
@@ -60,7 +60,7 @@ def _weighted_score(tendency: Tendency, horse: Horse, use_tansho: bool) -> tuple
         + _WEIGHTS["combo"] * combo_rate
     )
 
-    label = "1着適合率" if use_tansho else "複勝率"
+    label = "1着適合率" if use_tansho else "複勝適合率"
     reasons = [
         f"脚質「{horse.running_style}」の同条件{label}: {style_rate * 100:.1f}%",
         f"{frame_zone}×{horse.running_style}の組合せ{label}: {combo_rate * 100:.1f}%",
