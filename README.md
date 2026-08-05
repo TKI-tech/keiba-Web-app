@@ -121,6 +121,13 @@ Vercelはサーバーレス前提でStreamlitの常駐プロセス・WebSocket�
 とおり利用者に明示すること。Stripeは実際に課金が発生する本番(Live)キーではなく
 **テストモードのキー**を使うことを強く推奨する。
 
+`render.yaml` は無料の `plan: free` をデフォルトにしてある（費用なしでデプロイ
+できる）。ただし無料プランには (1) 永続ディスクが使えない＝会員・予想実績DBは
+再デプロイやスリープ復帰のたびに消える、(2) 15分アクセスがないとスリープし
+次回アクセス時の起動に数十秒かかる、という制約がある。デモとしては十分だが、
+データを残したい場合は `render.yaml` の `plan` を `starter` に変え、コメントアウト
+してある `disk:` セクションを有効化する（Renderの有料プランが必要）。
+
 ### 3プロセスの同居構成
 
 Streamlit本体・Stripe Webhook受信サーバー・Caddy（PWA配信+リバースプロキシ）を
@@ -133,9 +140,7 @@ Streamlit本体・Stripe Webhook受信サーバー・Caddy（PWA配信+リバー
 1. [Render](https://render.com)にログインし、「New +」→「Blueprint」から
    このGitHubリポジトリ（`TKI-tech/keiba-Web-app`）を選択する。`render.yaml` の
    内容が自動で読み込まれる。
-2. `render.yaml` の `plan: starter` は永続ディスク（会員・予想実績DB用）を使う
-   ための有料プラン。データが消えてもよいデモなら `plan: free` に変え、
-   `disk:` セクションを削除してもよい。
+2. デフォルトの `plan: free` のままなら費用はかからない（上記の制約は許容する）。
 3. デプロイ後、Renderダッシュボードの Environment 画面で以下を設定する
    （`render.yaml` では `sync: false` にしてあり、値はコミットしない）。
    - `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID`: Stripeのテストモードの値
