@@ -34,11 +34,23 @@ def _configure_stripe() -> None:
     stripe.api_key = _require_env("STRIPE_SECRET_KEY")
 
 
+def _base_url() -> str:
+    """CheckoutからのリダイレクトURLの基点。APP_BASE_URL未設定時は、Renderが
+    自動で注入する RENDER_EXTERNAL_URL にフォールバックする(Render上での
+    デプロイをAPP_BASE_URLの手動設定なしで動かすため)。"""
+    base_url = os.environ.get("APP_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL")
+    if not base_url:
+        raise BillingNotConfiguredError(
+            "APP_BASE_URL が設定されていません。.env.example を参考に .env を用意してください。"
+        )
+    return base_url.rstrip("/")
+
+
 def create_checkout_session(email: str) -> str:
     """指定メールアドレスでサブスクリプション用のCheckoutセッションを作成し、遷移先URLを返す。"""
     _configure_stripe()
     price_id = _require_env("STRIPE_PRICE_ID")
-    base_url = _require_env("APP_BASE_URL")
+    base_url = _base_url()
 
     session = stripe.checkout.Session.create(
         mode="subscription",
@@ -57,7 +69,7 @@ def create_checkout_session(email: str) -> str:
 def create_billing_portal_session(stripe_customer_id: str) -> str:
     """既存会員向けの「プラン管理（解約・支払い方法変更など）」ページのURLを返す。"""
     _configure_stripe()
-    base_url = _require_env("APP_BASE_URL")
+    base_url = _base_url()
 
     session = stripe.billing_portal.Session.create(
         customer=stripe_customer_id,

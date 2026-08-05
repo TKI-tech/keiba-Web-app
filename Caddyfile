@@ -1,4 +1,6 @@
-# ローカル開発用。本番では :8080 をドメイン名に変え、Caddyが自動でHTTPSを取得する。
+# ローカル開発ではデフォルトで:8080。Render等、$PORTを注入するホスティングでは
+# 自動的にそのポートで待ち受ける。本番で独自ドメインを使う場合はホスティング側の
+# ドメイン設定に任せ、ここは$PORTのままでよい（Caddyが自動でHTTPSを取得する）。
 #
 # 構成:
 #   /            -> static_pwa/ (manifest.json / sw.js / icons / ラッパーindex.html)
@@ -9,7 +11,7 @@
 # Service Worker)はラッパーページ(static_pwa/index.html)がStreamlitをiframeで
 # 埋め込む形で実現している。
 
-:8080 {
+:{$PORT:8080} {
 	encode gzip
 
 	@app path /app/*

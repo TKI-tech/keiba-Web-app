@@ -1,0 +1,29 @@
+# Render Blueprint。Renderダッシュボードの「New +」→「Blueprint」でこのリポジトリを
+# 選ぶと、この内容から自動でサービスが作成される。
+#
+# 注意:
+# - 永続ディスク(会員・予想実績DBの保存用)はRenderの無料プランでは使えないため、
+#   plan は starter(有料)にしてある。デモをディスクなし(再デプロイでデータが
+#   消えてよい)で試すだけなら free に変更し、disk セクションを削除してよい。
+# - sync: false の環境変数は、Renderダッシュボードの Environment 画面で手動設定する
+#   (Stripeの秘密鍵などをrender.yamlにコミットしないため)。
+services:
+  - type: web
+    name: keiba-web-app
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+    disk:
+      name: keiba-data
+      mountPath: /app/data
+      sizeGB: 1

@@ -110,14 +110,50 @@ localhostであればHTTPS無しでも有効）。
 Streamlitだけを単体で確認したい場合（PWA機能なし）は `streamlit run app.py`
 だけでも起動できる。
 
-## 本番デプロイ（Render / Vercel想定）
+## デプロイ（Render）
 
-- Caddyがドメイン名を検出すると自動でHTTPS証明書を取得する
-  （Caddyfile冒頭の `:8080` を実際のドメインに変更する）。
-- Streamlit・webhook_server・CaddyをそれぞれRenderの1サービスずつ、または
-  1コンテナ内でプロセスを束ねて動かす（構成はデプロイ先の制約に応じて調整）。
-- StripeのWebhookエンドポイントには本番ドメインの `https://<domain>/webhook/stripe`
-  を登録し、発行された署名シークレットを `STRIPE_WEBHOOK_SECRET` に設定する。
+Vercelはサーバーレス前提でStreamlitの常駐プロセス・WebSocket・SQLiteファイル
+保存と相性が悪いため非対応。Renderへの1サービスDockerデプロイを想定した構成
+（`Dockerfile` / `start.sh` / `render.yaml`）を用意している。
+
+**注意（デモ公開の位置づけ）**: 過去5年データ・出走馬データ・レース結果は
+すべてダミー（JRA-VAN未連携）。公開する場合も、この点をアプリ内の注意書きの
+とおり利用者に明示すること。Stripeは実際に課金が発生する本番(Live)キーではなく
+**テストモードのキー**を使うことを強く推奨する。
+
+### 3プロセスの同居構成
+
+Streamlit本体・Stripe Webhook受信サーバー・Caddy（PWA配信+リバースプロキシ）を
+1つのDockerコンテナにまとめている（`start.sh`）。RenderのようにWebサービスが
+公開ポートを1つしか持てない環境向けの構成で、Caddyが `$PORT`（Renderが自動注入）
+で待ち受け、内部的に他の2プロセスへ振り分ける。
+
+### 手順
+
+1. [Render](https://render.com)にログインし、「New +」→「Blueprint」から
+   このGitHubリポジトリ（`TKI-tech/keiba-Web-app`）を選択する。`render.yaml` の
+   内容が自動で読み込まれる。
+2. `render.yaml` の `plan: starter` は永続ディスク（会員・予想実績DB用）を使う
+   ための有料プラン。データが消えてもよいデモなら `plan: free` に変え、
+   `disk:` セクションを削除してもよい。
+3. デプロイ後、Renderダッシュボードの Environment 画面で以下を設定する
+   （`render.yaml` では `sync: false` にしてあり、値はコミットしない）。
+   - `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID`: Stripeのテストモードの値
+   - `STRIPE_WEBHOOK_SECRET`: 下記の本番Webhook作成後に発行される値
+   - `APP_BASE_URL`: 省略可。未設定ならRenderが自動注入する
+     `RENDER_EXTERNAL_URL` を使う（`core/billing.py`）。
+4. Stripeダッシュボード（テストモード）の Webhook設定で、エンドポイント
+   `https://<Renderが割り当てたドメイン>/webhook/stripe` を追加し、発行された
+   署名シークレットを `STRIPE_WEBHOOK_SECRET` に設定して再デプロイする。
+
+### ローカルでの動作検証
+
+Docker未使用でも、`start.sh` が起動する3プロセス構成そのものはローカルで
+そのまま検証できる（Renderと同じ起動経路を再現）。
+
+```bash
+PORT=8080 ./start.sh
+```
 
 ## 構成
 
@@ -127,6 +163,11 @@ webhook_server.py          Stripe Webhook受信（stdlib httpのみ、依存追�
 Caddyfile                  リバースプロキシ + 静的PWA配信の設定
 static_pwa/                manifest.json / sw.js / offline.html / icons / ラッパーindex.html
 scripts/generate_icons.py  PWAアイコン(プレースホルダー)生成スクリプト
+
+Dockerfile                 Render等へのデプロイ用イメージ定義
+start.sh                   コンテナ内で3プロセス(Streamlit/Webhook/Caddy)を起動
+render.yaml                Render Blueprint（envVars・永続ディスクの定義）
+.dockerignore               Dockerビルドコンテキストから除外するファイル
 
 core/models.py             ドメインモデル・属性分類ロジック
 core/mock_data.py          出走馬ダミーデータ生成（将来JRA-VANに差し替え）
