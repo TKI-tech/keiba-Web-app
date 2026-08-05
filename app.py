@@ -176,7 +176,11 @@ if is_member:
     with col1:
         st.markdown("**券種・組合せ**")
         st.markdown(f"## {c.bet_type}")
-        st.caption(f"{c.points}点（" + "、".join(f"{h.horse.number}番 {h.horse.name}" for h in c.horses) + "）")
+        if c.bet_type == "枠連":
+            horses_desc = "、".join(f"{h.horse.frame}枠（{h.horse.number}番 {h.horse.name}）" for h in c.horses)
+        else:
+            horses_desc = "、".join(f"{h.horse.number}番 {h.horse.name}" for h in c.horses)
+        st.caption(f"{c.points}点（{horses_desc}）")
     with col2:
         st.metric("見積もり的中率", f"{c.hit_rate * 100:.1f}%")
         st.metric("見積もり回収率", f"{c.return_rate:.0f}%")
@@ -217,18 +221,19 @@ if is_member:
     bet_type = st.selectbox("馬券の種類", BET_TYPES)
     solid, rough = recommend_bets(scores, bet_type)
 
+    def _pick_label(h) -> str:
+        if bet_type == "枠連":
+            return f"**{h.horse.frame}枠**（{h.horse.number}番 {h.horse.name}）"
+        return f"**{h.horse.number}番 {h.horse.name}**"
+
     col_solid, col_rough = st.columns(2)
     with col_solid:
         st.markdown(f"### {solid.style_label}")
-        st.markdown(
-            " ／ ".join(f"**{h.horse.number}番 {h.horse.name}**" for h in solid.horses)
-        )
+        st.markdown(" ／ ".join(_pick_label(h) for h in solid.horses))
         st.write(solid.explanation)
     with col_rough:
         st.markdown(f"### {rough.style_label}")
-        st.markdown(
-            " ／ ".join(f"**{h.horse.number}番 {h.horse.name}**" for h in rough.horses)
-        )
+        st.markdown(" ／ ".join(_pick_label(h) for h in rough.horses))
         st.write(rough.explanation)
 else:
     render_locked_section("買い目を選ぶ", "堅実タイプ・荒れ狙いタイプの買い目提案が確認できます。")

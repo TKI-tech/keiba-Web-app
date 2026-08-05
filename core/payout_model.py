@@ -15,10 +15,19 @@ def payout_multiple(bet_type: str, odds: list[float]) -> float:
         return sorted_odds[0]
     if bet_type == "複勝":
         return max(1.05, round(1 + (sorted_odds[0] - 1) * 0.3, 1))
+    if bet_type == "枠連":
+        # 馬連より当たりやすい(同じ枠に複数頭いる分)ため倍率は低めにしてある。
+        return (sorted_odds[0] * sorted_odds[1]) ** 0.5 * 0.7
     if bet_type == "ワイド":
         return (sorted_odds[0] * sorted_odds[1]) ** 0.5 * 0.6
     if bet_type == "馬連":
         return (sorted_odds[0] * sorted_odds[1]) ** 0.6
+    if bet_type == "馬単":
+        # 着順まで当てる分、同じ組合せの馬連より高倍率。
+        return (sorted_odds[0] * sorted_odds[1]) ** 0.65 * 1.3
     if bet_type == "三連複":
         return (sorted_odds[0] * sorted_odds[1] * sorted_odds[2]) ** (1 / 3) * 1.6
+    if bet_type == "三連単":
+        # 着順まで当てる分、同じ組合せの三連複よりさらに高倍率。
+        return (sorted_odds[0] * sorted_odds[1] * sorted_odds[2]) ** (1 / 3) * 2.8
     raise ValueError(f"unknown bet type: {bet_type}")
