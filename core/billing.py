@@ -57,6 +57,10 @@ def create_checkout_session(email: str) -> str:
         cancel_url=f"{base_url}/app/?checkout=cancel",
         # Webhook側でメールアドレスと突き合わせるためclient_referenceに残す。
         client_reference_id=email,
+        # Managed Payments(Stripeが税務等を代行する新機能、アカウントによっては
+        # デフォルト有効)は商品にtax_codeの設定が要る。今は税務代行が本題では
+        # ないため明示的に無効化する。
+        managed_payments={"enabled": False},
     )
     if not session.url:
         raise RuntimeError("Stripe Checkoutセッションの作成に失敗しました（URLが空です）。")
