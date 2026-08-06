@@ -21,6 +21,7 @@ from core.accounts import (
     InvalidVerificationTokenError,
     ensure_master_account,
     login,
+    normalize_email,
     register,
     request_password_reset,
     resend_verification_email,
@@ -111,6 +112,7 @@ def render_membership_sidebar() -> bool:
                 email = st.text_input("メールアドレス", key="login_email")
                 password = st.text_input("パスワード", type="password", key="login_password")
                 if st.form_submit_button("ログイン"):
+                    email = normalize_email(email)
                     try:
                         login(email, password)
                     except EmailNotVerifiedError as exc:
@@ -138,6 +140,7 @@ def render_membership_sidebar() -> bool:
                 password = st.text_input("パスワード（8文字以上）", type="password", key="register_password")
                 confirm = st.text_input("パスワード（確認）", type="password", key="register_confirm")
                 if st.form_submit_button("登録する"):
+                    email = normalize_email(email)
                     if password != confirm:
                         st.error("パスワードが一致しません。")
                     else:
@@ -155,6 +158,7 @@ def render_membership_sidebar() -> bool:
             with st.form("forgot_password_form"):
                 email = st.text_input("メールアドレス", key="forgot_email")
                 if st.form_submit_button("再設定メールを送る"):
+                    email = normalize_email(email)
                     try:
                         request_password_reset(email)
                     except (AppUrlNotConfiguredError, EmailNotConfiguredError) as exc:

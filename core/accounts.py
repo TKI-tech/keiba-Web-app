@@ -53,6 +53,15 @@ def _validate_password(password: str) -> None:
         raise WeakPasswordError(f"パスワードは{MIN_PASSWORD_LENGTH}文字以上にしてください。")
 
 
+def normalize_email(email: str) -> str:
+    """前後の空白除去+小文字化。表記ゆれ(大文字/小文字、コピペ時の余分な空白)で
+    同一人物が別アカウント扱いになったり、確認・再設定メールが本人と気づかず
+    別物として扱われて送信されない、という事態を防ぐため、メールアドレスを
+    受け取るすべての箇所でこれを通してから照合・保存する。
+    """
+    return email.strip().lower()
+
+
 def _send_verification_email(email: str) -> None:
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + VERIFICATION_TOKEN_TTL
@@ -71,6 +80,7 @@ def register(email: str, password: str) -> None:
     """アカウントを作成する。作成直後はメール未確認状態で、確認メールのリンクを
     踏むまでログインできない(login()がEmailNotVerifiedErrorを送出する)。
     """
+    email = normalize_email(email)
     _validate_password(password)
     existing = members_db.get_member(email)
     if existing and existing.has_account:
@@ -81,6 +91,7 @@ def register(email: str, password: str) -> None:
 
 
 def login(email: str, password: str) -> None:
+    email = normalize_email(email)
     member = members_db.get_member(email)
     if not member or not member.has_account or not verify_password(password, member.password_hash):
         raise InvalidCredentialsError("メールアドレスまたはパスワードが正しくありません。")
@@ -92,6 +103,7 @@ def login(email: str, password: str) -> None:
 
 def resend_verification_email(email: str) -> None:
     """未登録・確認済みの場合は何もしない(登録有無を外部に漏らさないため)。"""
+    email = normalize_email(email)
     member = members_db.get_member(email)
     if not member or not member.has_account or member.is_email_verified:
         return
@@ -113,6 +125,7 @@ def verify_email(token: str) -> str:
 
 def request_password_reset(email: str) -> None:
     """該当メールアドレスが未登録でも例外を出さない(登録有無を外部に漏らさないため)。"""
+    email = normalize_email(email)
     member = members_db.get_member(email)
     if not member or not member.has_account:
         return
@@ -142,6 +155,7 @@ def ensure_master_account() -> None:
     master_password = os.environ.get("MASTER_PASSWORD")
     if not master_email or not master_password:
         return
+    master_email = normalize_email(master_email)
     members_db.set_password_hash(master_email, hash_password(master_password))
     members_db.set_email_verified(master_email, True)
     members_db.upsert_member(master_email, subscription_status="active")
