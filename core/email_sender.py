@@ -1,16 +1,24 @@
-"""SMTP経由のメール送信（パスワード再設定通知に使用）。
+"""Resend(HTTPS API)経由のメール送信（確認メール・パスワード再設定通知に使用）。
 
-Gmailの「アプリパスワード」や、SendGrid/Mailgun/Resend等のSMTPリレーなど、
-利用者自身のSMTP資格情報を .env で設定して使う想定（Stripeキーと同じ方針）。
+以前はSMTP(smtplib)で実装していたが、Renderのようなホスティングはスパム対策として
+コンテナからの外向きSMTP通信(ポート587/465等)をネットワークレベルでブロックしている
+ことが多く、実際にこのアプリもRender上でSMTP接続がタイムアウトすることを確認した
+(IPv4/IPv6の経路の問題ではなく、ポート自体が塞がれている)。HTTPS(443番)経由の
+メール送信APIに切り替えることで、この種のポート制限を回避している。
+
+Resendは無料枠(月3,000通/日100通)があり、独自ドメインが無くても
+onboarding@resend.dev という送信元ですぐに送信できる。
 """
 
 from __future__ import annotations
 
-import contextlib
+import json
 import os
-import smtplib
-import socket
-from email.mime.text import MIMEText
+import urllib.error
+import urllib.request
+
+_API_URL = "https://api.resend.com/emails"
+_DEFAULT_FROM_EMAIL = "onboarding@resend.dev"
 
 
 class EmailNotConfiguredError(RuntimeError):
@@ -26,39 +34,33 @@ def _require_env(name: str) -> str:
     return value
 
 
-@contextlib.contextmanager
-def _force_ipv4_dns():
-    """RenderのようなホスティングではコンテナにIPv6アドレスが割り当てられていても
-    実際にはIPv6の経路がなく、smtp.gmail.com 等IPv6も公開しているホストへの接続が
-    "Network is unreachable" で失敗することがある。この間だけ名前解決をIPv4限定にし、
-    smtplib が意図せずIPv6アドレスへ接続を試みないようにする(呼び出し元のホスト名は
-    そのまま使うため、TLSのホスト名検証には影響しない)。
-    """
-    original_getaddrinfo = socket.getaddrinfo
-
-    def ipv4_only_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-        return original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
-
-    socket.getaddrinfo = ipv4_only_getaddrinfo
-    try:
-        yield
-    finally:
-        socket.getaddrinfo = original_getaddrinfo
-
-
 def send_email(to_email: str, subject: str, body: str) -> None:
-    host = _require_env("SMTP_HOST")
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    user = _require_env("SMTP_USER")
-    password = _require_env("SMTP_PASSWORD")
-    from_email = os.environ.get("SMTP_FROM_EMAIL", user)
+    api_key = _require_env("RESEND_API_KEY")
+    from_email = os.environ.get("RESEND_FROM_EMAIL", _DEFAULT_FROM_EMAIL)
 
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = from_email
-    msg["To"] = to_email
+    payload = json.dumps(
+        {
+            "from": from_email,
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        }
+    ).encode("utf-8")
 
-    with _force_ipv4_dns(), smtplib.SMTP(host, port, timeout=10) as server:
-        server.starttls()
-        server.login(user, password)
-        server.sendmail(from_email, [to_email], msg.as_string())
+    request = urllib.request.Request(
+        _API_URL,
+        data=payload,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            if response.status >= 300:
+                body_text = response.read().decode("utf-8", errors="replace")
+                raise RuntimeError(f"Resendでのメール送信に失敗しました(status={response.status}): {body_text}")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Resendでのメール送信に失敗しました(status={exc.code}): {detail}") from exc

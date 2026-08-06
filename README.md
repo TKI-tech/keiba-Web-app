@@ -97,15 +97,23 @@ Stripeキーを設定しなくてもアプリ自体は起動・動作する（�
 
 ### メール送信（新規登録の確認メール・パスワード再設定メール）を使う場合
 
-`.env.example` の `SMTP_*` を埋める（Gmailなら「アプリパスワード」を発行して
-`SMTP_PASSWORD` に設定する、またはSendGrid/Mailgun/Resend等のSMTPリレーを使う）。
+[Resend](https://resend.com)で無料アカウントを作成し、APIキーを発行する
+（月3,000通/日100通まで無料、クレジットカード登録不要）。`.env.example` の
+`RESEND_API_KEY` に設定する。`RESEND_FROM_EMAIL` は省略可（未設定時は
+`onboarding@resend.dev` が使われ、独自ドメインの認証なしですぐ送信できる）。
+
 未設定でもアプリは動作するが、確認メール・再設定メールの送信だけ
 「設定されていません」というエラーになる。
 
-Render等、コンテナにIPv6アドレスは割り当てられているが実際のIPv6経路がない
-ホスティング環境では、`smtp.gmail.com`のようにIPv6も公開しているホストへの接続が
-`OSError: [Errno 101] Network is unreachable`で失敗することがある。
-`core/email_sender.py`は送信時にDNS解決をIPv4限定にすることでこれを回避している。
+**メール送信にSMTPではなくHTTPS APIを使っている理由**: 当初はSMTP(Gmailの
+アプリパスワード)で実装していたが、Render上で検証したところ、コンテナに
+IPv6アドレスは割り当てられているのに実際のIPv6経路がなく`OSError: [Errno 101]
+Network is unreachable`で接続に失敗し、IPv4限定に強制した後も今度は
+`TimeoutError: timed out`で接続がタイムアウトすることを確認した。これは
+スパム対策として外向きSMTP通信(587/465番ポート等)をネットワークレベルで
+ブロックするホスティングでよく見られる制限で、アプリ側の実装では回避できない。
+そのためHTTPS(443番、ブロックされることがまず無い)経由のResend APIに切り替えた
+（`core/email_sender.py`）。
 
 ### テスト用マスターアカウントを使う場合
 
@@ -223,7 +231,7 @@ core/billing.py            Stripe Checkout / Billing Portalセッション作成
 core/members_db.py         会員（認証情報 + サブスクリプション状態）のSQLite永続化
 core/auth.py               パスワードのハッシュ化・検証(PBKDF2-HMAC-SHA256)
 core/accounts.py           登録・ログイン・メール確認・パスワード再設定・テスト用マスターアカウントのロジック
-core/email_sender.py       SMTP経由のメール送信（確認メール・パスワード再設定通知）
+core/email_sender.py       Resend(HTTPS API)経由のメール送信（確認メール・パスワード再設定通知）
 core/app_url.py            アプリ自身の公開URL解決（Stripe/メールのリンク生成で共有）
 
 pages/01_過去の実績.py      過去の予想と的中実績（会場別回収率グラフ）

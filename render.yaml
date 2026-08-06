@@ -31,15 +31,11 @@ services:
         sync: false
       - key: APP_BASE_URL
         sync: false
-      - key: SMTP_HOST
+      # メール送信(確認メール・パスワード再設定)はResendのHTTPS APIを使う。SMTPは
+      # Render上でポートがブロックされ接続がタイムアウトすることを確認済みのため不採用。
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_FROM_EMAIL
+      - key: RESEND_FROM_EMAIL
         sync: false
       # テスト用マスターアカウント(任意)。設定するとStripe決済なしに会員限定画面を
       # 確認できてしまうため、強いパスワードを使うか、確認が終わったら値を消すこと。
