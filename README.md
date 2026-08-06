@@ -242,3 +242,8 @@ pages/01_過去の実績.py      過去の予想と的中実績（会場別回�
 - JRA-VAN（JV-Link）連携（会員登録の仕組みが整ったので次に着手）。連携後は
   `core/history_source.py` / `core/mock_data.py`（過去データ・出走馬）に加えて
   `core/result_source.py`（レース結果）も実データに差し替える
+- **【本番実装（一般公開）前に対応】Resendの独自ドメイン認証**: 現状は
+  `onboarding@resend.dev`（Resendアカウント登録メールアドレス宛にしか送信不可）を
+  使っているため、他のユーザーが新規登録しても確認メールが届かない。独自ドメインを
+  取得しResend側でDNS認証したうえで、`RESEND_FROM_EMAIL`をそのドメインのアドレスに
+  変更する必要がある（ドメイン取得自体は有料、Resend側の認証機能自体は無料）
