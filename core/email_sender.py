@@ -8,6 +8,11 @@
 
 Resendは無料枠(月3,000通/日100通)があり、独自ドメインが無くても
 onboarding@resend.dev という送信元ですぐに送信できる。
+
+User-Agentを明示的に指定しているのは、urllibのデフォルトUser-Agent
+("Python-urllib/3.x")がResendの手前にあるCloudflareのボット対策(Error 1010:
+Bad Bot)に自動プログラムの典型的な特徴として検知され、Resendまでリクエストが
+届く前に拒否されることを実際に確認したため。
 """
 
 from __future__ import annotations
@@ -63,6 +68,7 @@ def send_email(to_email: str, subject: str, body: str) -> None:
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "keiba-web-app-mailer/1.0",
         },
     )
     try:
