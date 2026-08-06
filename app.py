@@ -32,7 +32,7 @@ from core.app_url import AppUrlNotConfiguredError
 from core.bet_recommendation import BET_TYPES, recommend_bets
 from core.billing import BillingNotConfiguredError, create_billing_portal_session, create_checkout_session
 from core.data_source import get_entry_data_source
-from core.email_sender import EmailNotConfiguredError
+from core.email_sender import EmailNotConfiguredError, EmailSendError
 from core.history_source import build_tendency
 from core.members_db import get_member
 from core.models import VENUES
@@ -129,7 +129,7 @@ def render_membership_sidebar() -> bool:
             if unverified_email and st.button("確認メールを再送する", key="resend_verification_button"):
                 try:
                     resend_verification_email(unverified_email)
-                except (AppUrlNotConfiguredError, EmailNotConfiguredError) as exc:
+                except (AppUrlNotConfiguredError, EmailNotConfiguredError, EmailSendError) as exc:
                     st.error(str(exc))
                 else:
                     st.success("確認メールを再送しました。")
@@ -146,7 +146,7 @@ def render_membership_sidebar() -> bool:
                     else:
                         try:
                             register(email, password)
-                        except (AccountError, AppUrlNotConfiguredError, EmailNotConfiguredError) as exc:
+                        except (AccountError, AppUrlNotConfiguredError, EmailNotConfiguredError, EmailSendError) as exc:
                             st.error(str(exc))
                         else:
                             st.success(
@@ -161,7 +161,7 @@ def render_membership_sidebar() -> bool:
                     email = normalize_email(email)
                     try:
                         request_password_reset(email)
-                    except (AppUrlNotConfiguredError, EmailNotConfiguredError) as exc:
+                    except (AppUrlNotConfiguredError, EmailNotConfiguredError, EmailSendError) as exc:
                         st.error(str(exc))
                     else:
                         st.success(

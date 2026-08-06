@@ -25,6 +25,15 @@ class EmailNotConfiguredError(RuntimeError):
     pass
 
 
+class EmailSendError(RuntimeError):
+    """設定は揃っているが、Resend側がリクエストを拒否した場合(ドメイン未認証で
+    自分以外の宛先に送ろうとした等)。呼び出し元でユーザー向けの案内に変換しやすい
+    よう、EmailNotConfiguredErrorとは別の型にしてある。
+    """
+
+    pass
+
+
 def _require_env(name: str) -> str:
     value = os.environ.get(name)
     if not value:
@@ -60,7 +69,7 @@ def send_email(to_email: str, subject: str, body: str) -> None:
         with urllib.request.urlopen(request, timeout=10) as response:
             if response.status >= 300:
                 body_text = response.read().decode("utf-8", errors="replace")
-                raise RuntimeError(f"Resendでのメール送信に失敗しました(status={response.status}): {body_text}")
+                raise EmailSendError(f"Resendでのメール送信に失敗しました(status={response.status}): {body_text}")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Resendでのメール送信に失敗しました(status={exc.code}): {detail}") from exc
+        raise EmailSendError(f"Resendでのメール送信に失敗しました(status={exc.code}): {detail}") from exc
