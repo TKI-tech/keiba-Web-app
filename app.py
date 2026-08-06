@@ -15,13 +15,17 @@ from dotenv import load_dotenv
 from core.accounts import (
     AccountError,
     EmailAlreadyRegisteredError,
+    EmailNotVerifiedError,
     InvalidCredentialsError,
     InvalidResetTokenError,
+    InvalidVerificationTokenError,
     ensure_master_account,
     login,
     register,
     request_password_reset,
+    resend_verification_email,
     reset_password,
+    verify_email,
 )
 from core.app_url import AppUrlNotConfiguredError
 from core.bet_recommendation import BET_TYPES, recommend_bets
@@ -75,6 +79,21 @@ def render_reset_password_form(token: str) -> None:
                 st.stop()
 
 
+def render_verify_email_page(token: str) -> None:
+    """確認メールのリンク(?verify_token=...)を踏んだ場合の専用画面。"""
+    st.title("メールアドレスの確認")
+    try:
+        email = verify_email(token)
+    except AccountError as exc:
+        st.error(str(exc))
+        st.page_link("app.py", label="予想画面に戻る")
+    else:
+        st.query_params.clear()
+        st.success(f"{email} の確認が完了しました。サイドバーからログインしてください。")
+        st.page_link("app.py", label="予想画面に戻る")
+    st.stop()
+
+
 def render_membership_sidebar() -> bool:
     """ログイン・新規登録・パスワード再設定 + Stripe会員登録の導線。
     戻り値は、ログイン中のアカウントが有効な会員（サブスク中）かどうか
@@ -94,11 +113,24 @@ def render_membership_sidebar() -> bool:
                 if st.form_submit_button("ログイン"):
                     try:
                         login(email, password)
+                    except EmailNotVerifiedError as exc:
+                        st.error(str(exc))
+                        st.session_state["unverified_login_email"] = email
                     except AccountError as exc:
                         st.error(str(exc))
                     else:
+                        st.session_state.pop("unverified_login_email", None)
                         st.session_state["auth_email"] = email
                         st.rerun()
+
+            unverified_email = st.session_state.get("unverified_login_email")
+            if unverified_email and st.button("確認メールを再送する", key="resend_verification_button"):
+                try:
+                    resend_verification_email(unverified_email)
+                except (AppUrlNotConfiguredError, EmailNotConfiguredError) as exc:
+                    st.error(str(exc))
+                else:
+                    st.success("確認メールを再送しました。")
 
         with tab_register:
             with st.form("register_form"):
@@ -111,11 +143,13 @@ def render_membership_sidebar() -> bool:
                     else:
                         try:
                             register(email, password)
-                        except AccountError as exc:
+                        except (AccountError, AppUrlNotConfiguredError, EmailNotConfiguredError) as exc:
                             st.error(str(exc))
                         else:
-                            st.session_state["auth_email"] = email
-                            st.rerun()
+                            st.success(
+                                f"{email} 宛に確認メールを送信しました。メール内のリンクをクリックして"
+                                "登録を完了してください（届かない場合は迷惑メールフォルダもご確認ください）。"
+                            )
 
         with tab_forgot:
             with st.form("forgot_password_form"):
@@ -165,6 +199,11 @@ def render_locked_section(title: str, description: str) -> None:
         icon="🔒",
     )
 
+
+verify_token = st.query_params.get("verify_token")
+if verify_token:
+    render_verify_email_page(verify_token)
+    st.stop()
 
 reset_token = st.query_params.get("reset_token")
 if reset_token:

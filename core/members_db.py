@@ -33,10 +33,17 @@ CREATE TABLE IF NOT EXISTS members (
 """
 
 # 既存DB(旧スキーマ)にも安全に追加できるよう、CREATE TABLEとは別にALTERで補う。
+# email_verified は DEFAULT 1 にしてあり、この機能を追加する前から存在していた
+# アカウント(既にパスワードでログインできていた行)を、追加後にいきなりログイン
+# できなくしないため(=既存アカウントは検証済み扱いのまま維持する)。新規登録
+# (core/accounts.py の register())だけが明示的に 0 にする。
 _MIGRATION_COLUMNS = {
     "password_hash": "TEXT",
     "reset_token": "TEXT",
     "reset_token_expires": "TEXT",
+    "email_verified": "INTEGER DEFAULT 1",
+    "verification_token": "TEXT",
+    "verification_token_expires": "TEXT",
 }
 
 
@@ -50,6 +57,9 @@ class Member:
     password_hash: str | None = None
     reset_token: str | None = None
     reset_token_expires: str | None = None
+    email_verified: int | None = 1
+    verification_token: str | None = None
+    verification_token_expires: str | None = None
 
     @property
     def is_active(self) -> bool:
@@ -58,6 +68,10 @@ class Member:
     @property
     def has_account(self) -> bool:
         return self.password_hash is not None
+
+    @property
+    def is_email_verified(self) -> bool:
+        return bool(self.email_verified)
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -97,6 +111,14 @@ def get_member_by_customer_id(stripe_customer_id: str) -> Member | None:
 def get_member_by_reset_token(token: str) -> Member | None:
     with _connect() as conn:
         row = conn.execute("SELECT * FROM members WHERE reset_token = ?", (token,)).fetchone()
+    if row is None:
+        return None
+    return Member(**dict(row))
+
+
+def get_member_by_verification_token(token: str) -> Member | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM members WHERE verification_token = ?", (token,)).fetchone()
     if row is None:
         return None
     return Member(**dict(row))
@@ -166,6 +188,38 @@ def clear_reset_token(email: str) -> None:
     with _connect() as conn:
         conn.execute(
             "UPDATE members SET reset_token = NULL, reset_token_expires = NULL, updated_at = ? WHERE email = ?",
+            (now, email),
+        )
+        conn.commit()
+
+
+def set_email_verified(email: str, verified: bool) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        _ensure_row(conn, email, now)
+        conn.execute(
+            "UPDATE members SET email_verified = ?, updated_at = ? WHERE email = ?",
+            (1 if verified else 0, now, email),
+        )
+        conn.commit()
+
+
+def set_verification_token(email: str, token: str, expires_at_iso: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        _ensure_row(conn, email, now)
+        conn.execute(
+            "UPDATE members SET verification_token = ?, verification_token_expires = ?, updated_at = ? WHERE email = ?",
+            (token, expires_at_iso, now, email),
+        )
+        conn.commit()
+
+
+def clear_verification_token(email: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE members SET verification_token = NULL, verification_token_expires = NULL, updated_at = ? WHERE email = ?",
             (now, email),
         )
         conn.commit()
