@@ -2,11 +2,11 @@
 # 選ぶと、この内容から自動でサービスが作成される。
 #
 # 注意:
-# - plan: free は無料だが、(1) 永続ディスクが使えない(会員・予想実績DBは再デプロイや
-#   スリープ復帰のたびに消える)、(2) 15分アクセスがないとスリープし次回アクセス時に
-#   起動し直す(数十秒待たされる)という制約がある。デモ公開としてはこれで十分。
-#   データを残したい・スリープさせたくない場合は plan を starter に変え、以下の
-#   disk セクションのコメントを外す(Renderの有料プランが必要)。
+# - plan: starter + 永続ディスクにしてある(有料)。実際の会員・課金者が使うため、
+#   (1) 再デプロイ・スリープ復帰のたびに会員データが消える、(2) 15分無アクセスで
+#   スリープし次回アクセス時に数十秒待たされる、という無料プランの制約は許容できない
+#   ため。デモ検証だけでよい場合は plan を free に戻し、disk セクションをコメント
+#   アウトすればよい。
 # - sync: false の環境変数は、Renderダッシュボードの Environment 画面で手動設定する
 #   (Stripeの秘密鍵などをrender.yamlにコミットしないため)。
 # - PORT を明示的に指定しているのは、指定しないとRenderがコンテナ内の複数の開いた
@@ -19,7 +19,7 @@ services:
     env: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     envVars:
       - key: PORT
         value: "10000"
@@ -43,7 +43,7 @@ services:
         sync: false
       - key: MASTER_PASSWORD
         sync: false
-    # disk:
-    #   name: keiba-data
-    #   mountPath: /app/data
-    #   sizeGB: 1
+    disk:
+      name: keiba-data
+      mountPath: /app/data
+      sizeGB: 1
