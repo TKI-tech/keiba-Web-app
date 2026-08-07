@@ -11,7 +11,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="特定商取引法に基づく表記 - 競馬予想Webアプリ", layout="wide")
+st.set_page_config(page_title="特定商取引法に基づく表記 - 競馬予想 NEWMARKET", layout="wide")
 
 st.page_link("app.py", label="予想画面に戻る")
 

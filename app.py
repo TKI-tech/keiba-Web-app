@@ -43,7 +43,7 @@ from core.underdog import pick_underdog
 
 load_dotenv()
 
-st.set_page_config(page_title="競馬予想Webアプリ", layout="wide")
+st.set_page_config(page_title="競馬予想 NEWMARKET", layout="wide")
 
 
 @st.cache_resource
@@ -229,7 +229,11 @@ if checkout_status == "success":
 elif checkout_status == "cancel":
     st.warning("決済手続きがキャンセルされました。")
 
-st.title("初心者向け競馬予想Webアプリ")
+st.title("競馬予想 NEWMARKET")
+st.caption(
+    "「NEWMARKET」は、競馬発祥の地であるイギリスの競馬場「ニューマーケット競馬場」に"
+    "由来する名前です。競馬初心者の方の予想の助けになるサイト運営を心掛けています。"
+)
 st.caption(
     "独自の分析ロジックが過去5年分のレースデータと出走馬を照合し、馬ごとの"
     "「適合率」を算出。勘や人気だけに頼らない、データに基づいた競馬予想を"

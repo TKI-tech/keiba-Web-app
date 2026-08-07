@@ -17,7 +17,7 @@ import streamlit as st
 from core.predictions_db import get_all_settled, get_settleable, mark_settled, venue_stats
 from core.settlement import settle_ticket
 
-st.set_page_config(page_title="過去の実績 - 競馬予想Webアプリ", layout="wide")
+st.set_page_config(page_title="過去の実績 - 競馬予想 NEWMARKET", layout="wide")
 
 st.page_link("app.py", label="予想画面に戻る")
 

@@ -1,6 +1,6 @@
 {
-  "name": "競馬予想Webアプリ",
-  "short_name": "競馬予想",
+  "name": "競馬予想 NEWMARKET",
+  "short_name": "NEWMARKET",
   "description": "日付・会場・レース番号を選ぶだけで過去5年データと照合し、初心者向けの本命馬・買い目を提案するアプリ",
   "start_url": "/",
   "scope": "/",
