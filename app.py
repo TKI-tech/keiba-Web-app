@@ -187,6 +187,7 @@ def render_membership_sidebar() -> bool:
         return True
 
     st.sidebar.info("会員未登録、または手続き中です。")
+    st.sidebar.page_link("pages/02_特定商取引法に基づく表記.py", label="特定商取引法に基づく表記")
     if st.sidebar.button("登録リンクを作成"):
         try:
             checkout_url = create_checkout_session(logged_in_email)
@@ -217,6 +218,7 @@ if reset_token:
 is_member = render_membership_sidebar()
 st.sidebar.divider()
 st.sidebar.page_link("pages/01_過去の実績.py", label="過去の予想実績を見る")
+st.sidebar.page_link("pages/02_特定商取引法に基づく表記.py", label="特定商取引法に基づく表記")
 
 checkout_status = st.query_params.get("checkout")
 if checkout_status == "success":
