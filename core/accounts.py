@@ -19,6 +19,11 @@ RESET_TOKEN_TTL = timedelta(hours=1)
 VERIFICATION_TOKEN_TTL = timedelta(hours=24)
 MIN_PASSWORD_LENGTH = 8
 
+# ブルートフォース対策。5回連続でパスワードを間違えたら15分間ロックする
+# (Stripeのセキュリティ対策措置状況申告書で「未実装」としていた項目への対応)。
+MAX_FAILED_LOGIN_ATTEMPTS = 5
+LOCKOUT_DURATION = timedelta(minutes=15)
+
 
 class AccountError(RuntimeError):
     pass
@@ -29,6 +34,10 @@ class EmailAlreadyRegisteredError(AccountError):
 
 
 class InvalidCredentialsError(AccountError):
+    pass
+
+
+class AccountLockedError(AccountError):
     pass
 
 
@@ -93,8 +102,26 @@ def register(email: str, password: str) -> None:
 def login(email: str, password: str) -> None:
     email = normalize_email(email)
     member = members_db.get_member(email)
+
+    if member and member.has_account and member.lockout_until:
+        lockout_until = datetime.fromisoformat(member.lockout_until)
+        remaining = lockout_until - datetime.now(timezone.utc)
+        if remaining > timedelta(0):
+            remaining_minutes = max(1, int(remaining.total_seconds() // 60) + 1)
+            raise AccountLockedError(
+                f"ログイン試行回数が上限を超えたため、一時的にロックされています。"
+                f"{remaining_minutes}分後に再度お試しください。"
+            )
+
     if not member or not member.has_account or not verify_password(password, member.password_hash):
+        if member and member.has_account:
+            attempts = members_db.record_failed_login(email)
+            if attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
+                members_db.set_lockout(email, (datetime.now(timezone.utc) + LOCKOUT_DURATION).isoformat())
         raise InvalidCredentialsError("メールアドレスまたはパスワードが正しくありません。")
+
+    members_db.reset_failed_login(email)
+
     if not member.is_email_verified:
         raise EmailNotVerifiedError(
             "メールアドレスがまだ確認されていません。届いた確認メールのリンクをクリックしてください。"

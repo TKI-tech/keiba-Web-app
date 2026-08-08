@@ -44,6 +44,8 @@ _MIGRATION_COLUMNS = {
     "email_verified": "INTEGER DEFAULT 1",
     "verification_token": "TEXT",
     "verification_token_expires": "TEXT",
+    "failed_login_attempts": "INTEGER DEFAULT 0",
+    "lockout_until": "TEXT",
 }
 
 
@@ -60,6 +62,8 @@ class Member:
     email_verified: int | None = 1
     verification_token: str | None = None
     verification_token_expires: str | None = None
+    failed_login_attempts: int | None = 0
+    lockout_until: str | None = None
 
     @property
     def is_active(self) -> bool:
@@ -220,6 +224,42 @@ def clear_verification_token(email: str) -> None:
     with _connect() as conn:
         conn.execute(
             "UPDATE members SET verification_token = NULL, verification_token_expires = NULL, updated_at = ? WHERE email = ?",
+            (now, email),
+        )
+        conn.commit()
+
+
+def record_failed_login(email: str) -> int:
+    """ログイン失敗を1件記録し、更新後の連続失敗回数を返す。
+    閾値判定・ロック設定は呼び出し元(core.accounts)が行う。
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE members SET failed_login_attempts = COALESCE(failed_login_attempts, 0) + 1, "
+            "updated_at = ? WHERE email = ?",
+            (now, email),
+        )
+        conn.commit()
+        row = conn.execute("SELECT failed_login_attempts FROM members WHERE email = ?", (email,)).fetchone()
+    return row["failed_login_attempts"] if row else 0
+
+
+def set_lockout(email: str, lockout_until_iso: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE members SET lockout_until = ?, failed_login_attempts = 0, updated_at = ? WHERE email = ?",
+            (lockout_until_iso, now, email),
+        )
+        conn.commit()
+
+
+def reset_failed_login(email: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE members SET failed_login_attempts = 0, lockout_until = NULL, updated_at = ? WHERE email = ?",
             (now, email),
         )
         conn.commit()
